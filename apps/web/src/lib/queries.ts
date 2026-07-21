@@ -3,14 +3,23 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ApiError,
+  createProduct,
   deleteFile,
+  deleteProduct,
+  getCatalogGrowth,
+  getCatalogStats,
   getFiles,
   getFileStats,
   getHealth,
   getPreviewUrl,
+  getProduct,
+  getProducts,
   getUploadActivity,
+  rebuildIndex,
+  updateProduct,
+  type ProductFormValues,
 } from "@/lib/api-client";
-import type { FileMetadata } from "@vibe-coding-starter-kit/shared";
+import type { Category, FileMetadata } from "@clip-visual-product-search/shared";
 
 // Single source of truth for query keys. Keep these tightly scoped so that
 // invalidating "files" doesn't blow away unrelated caches, and so an IDE
@@ -24,6 +33,11 @@ export const qk = {
     [...qk.all, "stats", "activity", days] as const,
   preview: (key: string) => [...qk.all, "preview", key] as const,
   health: () => [...qk.all, "health"] as const,
+  // Catalog + CLIP search
+  products: (category?: string) => [...qk.all, "products", category ?? "all"] as const,
+  product: (sku: string) => [...qk.all, "product", sku] as const,
+  catalogStats: () => [...qk.all, "catalog", "stats"] as const,
+  catalogGrowth: (days: number) => [...qk.all, "catalog", "growth", days] as const,
 };
 
 export type Health = Awaited<ReturnType<typeof getHealth>>;
@@ -84,5 +98,69 @@ export function useDeleteFile() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.all });
     },
+  });
+}
+
+// --- Product catalog + CLIP search ---
+
+export function useProducts(category?: Category) {
+  return useQuery({
+    queryKey: qk.products(category),
+    queryFn: () => getProducts(category),
+  });
+}
+
+export function useProduct(sku: string | undefined) {
+  return useQuery({
+    queryKey: qk.product(sku ?? ""),
+    queryFn: () => getProduct(sku as string),
+    enabled: !!sku,
+  });
+}
+
+export function useCatalogStats() {
+  return useQuery({
+    queryKey: qk.catalogStats(),
+    queryFn: getCatalogStats,
+  });
+}
+
+export function useCatalogGrowth(days = 14) {
+  return useQuery({
+    queryKey: qk.catalogGrowth(days),
+    queryFn: () => getCatalogGrowth(days),
+  });
+}
+
+export function useCreateProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (values: ProductFormValues) => createProduct(values),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.all }),
+  });
+}
+
+export function useUpdateProduct(sku: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (values: Partial<Omit<ProductFormValues, "sku">>) =>
+      updateProduct(sku, values),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.all }),
+  });
+}
+
+export function useDeleteProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sku: string) => deleteProduct(sku),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.all }),
+  });
+}
+
+export function useRebuildIndex() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => rebuildIndex(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.all }),
   });
 }

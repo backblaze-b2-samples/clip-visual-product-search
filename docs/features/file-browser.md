@@ -1,8 +1,12 @@
-<!-- last_verified: 2026-06-26 -->
+<!-- last_verified: 2026-07-21 -->
 # Feature: File Browser
 
 ## Purpose
-List, preview, download, and delete files stored in Backblaze B2.
+List, preview, download, and delete **every** object stored in the Backblaze B2 bucket,
+across all prefixes. This is the raw full-bucket view (product images, `.npy` embeddings,
+the FAISS index, and the metadata CSV all show up here). It lives **alongside** the
+sample-scoped [Catalog Gallery](catalog-gallery.md) at `/catalog`, which shows only the
+`catalog/images/` product prefix as browsable product cards.
 
 ## Used By
 - UI: `/files` page, file browser component
@@ -55,11 +59,11 @@ List, preview, download, and delete files stored in Backblaze B2.
 - Invalid file key (traversal attempt, empty key) → API returns 400
 - File key contains `/`, spaces, `#`, `?`, `%`, reserved route names, or suffixes like `/download` and `/preview` → web client sends the key as a query parameter before calling get/download/preview/delete routes
 - B2 unreachable → persistent error state with retry
-- Empty bucket → upload prompt with direct Upload action
+- Empty bucket → empty-state message (seed the catalog or add a product to populate it)
 - Delete failure → API returns 500, toast error
 
 ## UX States
-- Empty: centered message with upload prompt and Upload action
+- Empty: centered empty-state message
 - Loading: skeleton rows
 - Error: inline error state with Retry
 - Loaded: tree view with expand/collapse folders and focus/hover action menus

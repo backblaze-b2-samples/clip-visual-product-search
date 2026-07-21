@@ -42,8 +42,9 @@ The download counter and the `/metrics` counters are **in-process, per replica**
 
 ## Graceful Degradation
 
-- File listing returns empty list (not error) when B2 has no objects
-- Metadata extraction failures don't block upload (return partial metadata)
+- Product/file listing returns an empty list (not an error) when B2 has no matching objects
+- Search over an empty index returns `count: 0` (not an error); a search hit whose metadata row is missing is skipped rather than 500ing
+- The FAISS index lazily reloads from B2 (or rebuilds from embeddings) if in-memory state is lost
 - Frontend shows skeleton states while loading, error states on failure
 
 ## Deployment

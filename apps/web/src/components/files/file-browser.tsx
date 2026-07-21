@@ -24,7 +24,7 @@ import { FileTreeRow } from "./file-tree-row";
 import { ApiError, getDownloadUrl } from "@/lib/api-client";
 import { useDeleteFile, useFiles } from "@/lib/queries";
 import { buildFileTree, type TreeFolder } from "@/lib/file-tree";
-import type { FileMetadata } from "@vibe-coding-starter-kit/shared";
+import type { FileMetadata } from "@clip-visual-product-search/shared";
 
 export function FileBrowser() {
   const { data: files = [], isLoading, isFetching, error, refetch } = useFiles();

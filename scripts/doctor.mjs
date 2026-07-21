@@ -26,15 +26,15 @@ const REQUIRED_PYTHON_MINOR = 11; // 3.11+
 
 // Required B2 env vars + the exact placeholder strings shipped in
 // .env.example. Keep in sync with services/api/main.py REQUIRED_B2_SETTINGS
-// and PLACEHOLDER_VALUES.
+// and PLACEHOLDER_VALUES. The endpoint is derived from B2_REGION, so B2_REGION
+// (not B2_ENDPOINT) is the required networking var.
 const REQUIRED_B2_VARS = [
-  "B2_ENDPOINT",
-  "B2_KEY_ID",
+  "B2_APPLICATION_KEY_ID",
   "B2_APPLICATION_KEY",
   "B2_BUCKET_NAME",
+  "B2_REGION",
 ];
 const PLACEHOLDERS = new Set([
-  "your_b2_endpoint",
   "your_key_id",
   "your_application_key",
   "your-bucket-name",
@@ -184,7 +184,7 @@ function checkEnv() {
   if (placeholders.length > 0) {
     fail(
       `.env still has placeholder values: ${placeholders.join(", ")}`,
-      "Edit .env and replace placeholders with your real B2 credentials (https://secure.backblaze.com/app_keys.htm?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-oss-start)",
+      "Edit .env and replace placeholders with your real B2 credentials (https://secure.backblaze.com/app_keys.htm?utm_source=github&utm_medium=referral&utm_campaign=ai_artifacts&utm_content=b2ai-clip-visual-product-search)",
     );
   }
 }

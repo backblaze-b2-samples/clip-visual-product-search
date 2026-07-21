@@ -1,4 +1,4 @@
-<!-- last_verified: 2026-06-25 -->
+<!-- last_verified: 2026-07-21 -->
 # AGENTS.md
 
 This is the authoritative control surface for all coding agents. Read this first.
@@ -9,54 +9,69 @@ This is the authoritative control surface for all coding agents. Read this first
 apps/web/          Next.js 16 frontend (App Router, Tailwind v4, shadcn/ui)
 services/api/      FastAPI backend (layered: types/config/repo/service/runtime)
 packages/shared/   Shared TypeScript types
+scripts/           Dev helpers + seed-catalog.py (populates a demo catalog in B2)
 docs/              System of record (features, workflows, security, reliability)
 docs/exec-plans/   Execution plans and tech debt tracker
 infra/railway/     Deployment config
 ```
 
-## 2. Building on This Starter Kit
+## 2. What This App Is
 
-When this repo is used as the foundation for a new app, the following pieces are part of the starter contract — keep them. Adapt only what the new use case actually requires.
+`clip-visual-product-search` is a self-hosted **visual + cross-modal product search** app
+for e-commerce catalogs. The primary entity is a **`Product`** (SKU + image + metadata +
+CLIP embedding). Backblaze B2 is the single durable store for three parallel artifact sets
+— product images, per-SKU CLIP embeddings (`.npy`), and the FAISS index — all over the
+S3-compatible API.
 
-**Keep as-is (do not strip, rename, or replace)**
-- **UI kit / design system.** `apps/web/src/components/ui/` (shadcn primitives), the design tokens in `apps/web/src/app/globals.css`, and the `/design` reference page. Build new screens with these primitives; never edit the generated `components/ui/` files directly. Restyling happens through tokens in `globals.css`.
-- **File Explorer.** `/files` route, `apps/web/src/app/files/`, and `apps/web/src/components/files/`. The Files sidebar entry in `apps/web/src/components/layout/app-sidebar.tsx` stays.
-- **Upload.** `/upload` route, `apps/web/src/app/upload/`, and `apps/web/src/components/upload/`. The Upload sidebar entry stays.
-- The sidebar nav itself (Dashboard, Upload, Files, Settings, plus the Design System utility link).
+- **Search** (`/search`) is the marquee flow: text→image and image→image, ranked by CLIP
+  cosine similarity over a FAISS index.
+- **Catalog** (`/catalog`) is the sample-scoped product gallery + full CRUD over `Product`,
+  plus per-product **"Find similar"** (the run verb).
+- **Files** (`/files`) is the **full-bucket explorer** — keep it; it browses every prefix.
+- **Dashboard** (`/`) shows catalog metrics (products, embeddings, index vectors, catalog
+  size) + a growth chart. Rewire new aggregations through `runtime → service → repo` and
+  expose them via TanStack Query hooks in `apps/web/src/lib/queries.ts` — no bare
+  `useEffect + fetch`.
 
-**Adapt to the new use case**
-- **Dashboard.** `/` route and `apps/web/src/components/dashboard/` (stats cards, upload chart, recent uploads table) are illustrative defaults. Replace them with metrics, charts, and tables that reflect what the new app actually does (e.g. transcripts processed, embeddings indexed, classifications run). New aggregations must flow through the same `runtime -> service -> repo` layering and be exposed via TanStack Query hooks in `apps/web/src/lib/queries.ts` — no bare `useEffect + fetch`.
-- Update `docs/features/dashboard.md` in the same PR as any dashboard change (see §9).
-
-**Why this contract exists**
-- The UI kit, Files, and Upload pages are the reusable B2-backed scaffolding that makes this a starter kit — stripping them defeats the purpose. The dashboard is the only screen explicitly designed to be rewritten per app.
+**Keep as-is (shared scaffolding)**
+- **UI kit / design system.** `apps/web/src/components/ui/` (shadcn primitives), the design
+  tokens in `apps/web/src/app/globals.css`, and the `/design` reference page. Build new
+  screens with these primitives; never edit generated `components/ui/` files directly.
+- **Full-bucket File Explorer.** `/files`, `apps/web/src/app/files/`,
+  `apps/web/src/components/files/`, the by-key API routes, and `lib/file-tree.ts`.
 
 ## 3. Architectural Invariants
 
-**Backend layering**: `types` -> `config` -> `repo` -> `service` -> `runtime`
+**Backend layering**: `types` → `config` → `repo` → `service` → `runtime`
 
 - No backward imports across layers
-- No `boto3` outside `repo/`
+- **No `boto3` outside `repo/`**
+- **No `torch` / `open_clip` outside `service/clip_model.py`** — the CLIP runtime is
+  contained exactly like boto3 so the app imports (and tests) never pull in torch
 - No business logic in route handlers (`runtime/`)
-- All external APIs wrapped in `repo/` adapters
-- All request/response data validated at boundary (Pydantic models)
+- All external APIs/models wrapped behind `repo/` (storage) or `service/clip_model.py` (CLIP)
+- All request/response data validated at the boundary (Pydantic models)
 - No shared mutable state across layers
+
+**Device policy**: CLIP device is auto-detected **CUDA → Apple MPS → CPU**, defaulting to
+CPU. Never hard-require a GPU (no unconditional `.cuda()` / `device="cuda"`, no assert on a
+missing GPU).
 
 **Frontend**: shadcn/ui components in `src/components/ui/` are generated — never modify them.
 
-**Data fetching**: every API call flows through TanStack Query hooks in `apps/web/src/lib/queries.ts`. No bare `useEffect + fetch` patterns. New endpoints touch three files: `runtime/<router>.py`, `lib/api-client.ts`, `lib/queries.ts`.
+**Data fetching**: every API call flows through TanStack Query hooks in
+`apps/web/src/lib/queries.ts`. New endpoints touch three files: `runtime/<router>.py`,
+`lib/api-client.ts`, `lib/queries.ts`.
 
 ## 4. Quality Expectations
 
-- **DRY** — do not duplicate logic, types, or constants. Extract shared code only when used in 2+ places.
-- Structured JSON logging only — no `print()` statements
-- No raw SDK calls outside `repo/` layer
-- Files stay under 300 lines
-- Tests added or updated for every behavior change
-- Docs updated in same PR as code changes
-- Lint clean before merge
-- Prefer boring, composable libraries over clever abstractions
-- No implicit type assumptions — use typed models
+- **DRY** — extract shared code only when used in 2+ places.
+- Structured JSON logging only — no `print()` statements.
+- No raw SDK/model calls outside their containment layer.
+- Files stay under 300 lines.
+- Tests added or updated for every behavior change.
+- Docs updated in the same PR as code changes.
+- Lint clean before merge; prefer boring, composable libraries.
 
 ## 5. Mechanical Enforcement
 
@@ -64,32 +79,34 @@ When this repo is used as the foundation for a new app, the following pieces are
 |------|-------------|
 | No backward imports | `tests/test_structure.py::test_no_backward_imports` |
 | No boto3 outside repo/ | `tests/test_structure.py::test_boto3_only_in_repo` |
+| No torch/open_clip outside service/clip_model.py | `tests/test_structure.py::test_clip_torch_only_in_clip_model` |
 | File size < 300 lines | `tests/test_structure.py::test_file_size_limits` |
 | All layers exist | `tests/test_structure.py::test_all_layers_exist` |
 | No bare print() | `ruff` rule T20 |
 | Import ordering | `ruff` rule I001 |
 | Frontend strict equality | `eslint` rule eqeqeq |
-| No unused vars | `eslint` + `ruff` rules |
 
 ## 6. Commands
 
 ```bash
 # Run
 pnpm dev               # start both frontend and backend
-pnpm dev:web           # frontend only
-pnpm dev:api           # backend only
+pnpm dev:web / dev:api # one side only
+python scripts/seed-catalog.py   # populate a demo catalog in B2 (real CLIP)
 
 # Test & Lint
 pnpm lint              # frontend lint (eslint)
 pnpm build             # frontend type check + build
 pnpm test:web          # frontend unit tests (vitest)
 pnpm lint:api          # backend lint (ruff)
-pnpm test:api          # backend tests (pytest)
+pnpm test:api          # backend tests (pytest — stubbed embedder, no model download)
 pnpm check:structure   # structural boundary tests
 pnpm test:e2e          # Playwright e2e tests
 ```
 
-CI (`.github/workflows/ci.yml`) runs these gates on every PR and push to `main`.
+CI (`.github/workflows/ci.yml`) runs these gates on every PR and push to `main`. Backend
+tests inject a **stub embedder** and an **in-memory B2**, so they run with no model
+download and no network — real CLIP is exercised by `scripts/seed-catalog.py`.
 
 ## 7. Agent Workflow
 
@@ -99,8 +116,7 @@ CI (`.github/workflows/ci.yml`) runs these gates on every PR and push to `main`.
 4. Implement the smallest coherent change.
 5. Run: `pnpm lint && pnpm test:web && pnpm lint:api && pnpm test:api && pnpm check:structure`
 6. Update docs in the same PR (see §9).
-7. Move completed plans to `docs/exec-plans/completed/`.
-8. Only change files relevant to the task. No drive-by improvements.
+7. Only change files relevant to the task. No drive-by improvements.
 
 ## 8. Frontend Conventions
 
@@ -117,10 +133,8 @@ See [docs/dev-workflows.md](docs/dev-workflows.md) for full details.
 | Setup or scope changes | `README.md` |
 | Security changes | `docs/SECURITY.md` |
 | Reliability changes | `docs/RELIABILITY.md` |
-| Active work plans | `docs/exec-plans/active/` |
-| Known tech debt | `docs/exec-plans/tech-debt-tracker.md` |
 
-If documentation and implementation conflict, update docs in the same PR. Documentation rot destroys agent reliability.
+If documentation and implementation conflict, update docs in the same PR.
 
 ## 10. Doc Map
 
@@ -130,15 +144,11 @@ If documentation and implementation conflict, update docs in the same PR. Docume
 | Feature docs | [docs/features/](docs/features/) |
 | User journeys | [docs/app-workflows.md](docs/app-workflows.md) |
 | Engineering workflows and testing | [docs/dev-workflows.md](docs/dev-workflows.md) |
-| Security principles | [docs/SECURITY.md](docs/SECURITY.md) |
-| Reliability expectations | [docs/RELIABILITY.md](docs/RELIABILITY.md) |
-| Execution plans | [docs/exec-plans/](docs/exec-plans/) |
-| Tech debt | [docs/exec-plans/tech-debt-tracker.md](docs/exec-plans/tech-debt-tracker.md) |
+| Security / Reliability | [docs/SECURITY.md](docs/SECURITY.md) · [docs/RELIABILITY.md](docs/RELIABILITY.md) |
+| Execution plans / Tech debt | [docs/exec-plans/](docs/exec-plans/) |
 
 ## 11. When Unsure
 
-- Prefer boring, stable libraries
-- Prefer small PRs over large changes
-- Add tests with every change
-- Never bypass lint rules without explicit instruction
-- Ask before making destructive or irreversible changes
+- Prefer boring, stable libraries; prefer small PRs.
+- Add tests with every change; never bypass lint rules without explicit instruction.
+- Ask before making destructive or irreversible changes.

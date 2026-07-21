@@ -1,9 +1,14 @@
 import type {
+  CatalogGrowthPoint,
+  CatalogStats,
+  Category,
   DailyUploadCount,
   FileMetadata,
-  FileUploadResponse,
+  Product,
+  SearchMode,
+  SearchResponse,
   UploadStats,
-} from "@vibe-coding-starter-kit/shared";
+} from "@clip-visual-product-search/shared";
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -172,40 +177,95 @@ export async function deleteFile(key: string) {
   );
 }
 
-export function uploadFile(
-  file: File,
-  onProgress?: (percent: number) => void
-): Promise<FileUploadResponse> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const formData = new FormData();
-    formData.append("file", file);
+// --- Product catalog + CLIP search ---
 
-    xhr.upload.addEventListener("progress", (e) => {
-      if (e.lengthComputable && onProgress) {
-        onProgress(Math.round((e.loaded / e.total) * 100));
-      }
-    });
+export async function getProducts(category?: Category) {
+  const qs = category ? `?category=${encodeURIComponent(category)}` : "";
+  return apiFetch<Product[]>(`/products${qs}`);
+}
 
-    xhr.addEventListener("load", () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(JSON.parse(xhr.responseText));
-      } else {
-        try {
-          const body = JSON.parse(xhr.responseText);
-          reject(new ApiError(body.detail || `Upload failed: ${xhr.status}`, xhr.status));
-        } catch {
-          reject(new ApiError(`Upload failed: ${xhr.status}`, xhr.status));
-        }
-      }
-    });
+export async function getProduct(sku: string) {
+  return apiFetch<Product>(`/products/${encodeURIComponent(sku)}`);
+}
 
-    xhr.addEventListener("error", () => reject(networkError()));
-    xhr.addEventListener("abort", () =>
-      reject(new ApiError("Upload aborted", 0)),
-    );
+export interface ProductFormValues {
+  sku: string;
+  title: string;
+  price: number;
+  currency: string;
+  category: string;
+  image?: File | null;
+}
 
-    xhr.open("POST", `${API_BASE}/upload`);
-    xhr.send(formData);
+export async function createProduct(values: ProductFormValues) {
+  const form = new FormData();
+  form.append("sku", values.sku);
+  form.append("title", values.title);
+  form.append("price", String(values.price));
+  form.append("currency", values.currency);
+  form.append("category", values.category);
+  if (values.image) form.append("image", values.image);
+  return apiFetch<Product>("/products", { method: "POST", body: form });
+}
+
+export async function updateProduct(
+  sku: string,
+  values: Partial<Omit<ProductFormValues, "sku">>,
+) {
+  const form = new FormData();
+  if (values.title !== undefined) form.append("title", values.title);
+  if (values.price !== undefined) form.append("price", String(values.price));
+  if (values.currency) form.append("currency", values.currency);
+  if (values.category) form.append("category", values.category);
+  if (values.image) form.append("image", values.image);
+  return apiFetch<Product>(`/products/${encodeURIComponent(sku)}`, {
+    method: "PATCH",
+    body: form,
   });
+}
+
+export async function deleteProduct(sku: string) {
+  return apiFetch<{ deleted: boolean; sku: string }>(
+    `/products/${encodeURIComponent(sku)}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function findSimilar(sku: string, k = 12, category?: Category) {
+  const params = new URLSearchParams({ k: String(k) });
+  if (category) params.set("category", category);
+  return apiFetch<SearchResponse>(
+    `/products/${encodeURIComponent(sku)}/similar?${params.toString()}`,
+    { method: "POST" },
+  );
+}
+
+export interface SearchParams {
+  mode: SearchMode;
+  query?: string;
+  image?: File | null;
+  k?: number;
+  category?: Category;
+}
+
+export async function search(params: SearchParams) {
+  const form = new FormData();
+  form.append("mode", params.mode);
+  form.append("k", String(params.k ?? 12));
+  if (params.query) form.append("query", params.query);
+  if (params.category) form.append("category", params.category);
+  if (params.image) form.append("image", params.image);
+  return apiFetch<SearchResponse>("/search", { method: "POST", body: form });
+}
+
+export async function getCatalogStats() {
+  return apiFetch<CatalogStats>("/catalog/stats");
+}
+
+export async function getCatalogGrowth(days = 14) {
+  return apiFetch<CatalogGrowthPoint[]>(`/catalog/stats/growth?days=${days}`);
+}
+
+export async function rebuildIndex() {
+  return apiFetch<CatalogStats>("/index/rebuild", { method: "POST" });
 }

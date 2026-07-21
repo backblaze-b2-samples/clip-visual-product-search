@@ -57,3 +57,56 @@ export interface UploadStats {
   uploads_today: number;
   total_downloads: number;
 }
+
+// --- Product catalog + CLIP search ---
+
+export const CATEGORIES = [
+  "Apparel",
+  "Footwear",
+  "Accessories",
+  "Home",
+  "Electronics",
+  "Beauty",
+] as const;
+export type Category = (typeof CATEGORIES)[number];
+
+export const CURRENCIES = ["USD", "EUR", "GBP"] as const;
+export type Currency = (typeof CURRENCIES)[number];
+
+export type SearchMode = "text" | "image";
+
+export interface Product {
+  sku: string;
+  title: string;
+  price: number;
+  currency: Currency;
+  category: Category;
+  image_key: string;
+  created_at: string;
+  image_url: string | null;
+}
+
+export interface SearchResult {
+  product: Product;
+  score: number;
+}
+
+export interface SearchResponse {
+  mode: SearchMode;
+  query: string | null;
+  count: number;
+  results: SearchResult[];
+}
+
+export interface CatalogStats {
+  product_count: number;
+  embedding_count: number;
+  index_vector_count: number;
+  catalog_bytes: number;
+  catalog_bytes_human: string;
+}
+
+export interface CatalogGrowthPoint {
+  date: string;
+  products: number;
+}

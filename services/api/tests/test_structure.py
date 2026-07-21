@@ -82,6 +82,27 @@ def test_boto3_only_in_repo():
     assert violations == [], "boto3 boundary violations:\n" + "\n".join(violations)
 
 
+def test_clip_torch_only_in_clip_model():
+    """Verify torch / open_clip are imported only in service/clip_model.py.
+
+    Keeps the heavy ML runtime contained (mirrors the boto3-only-in-repo rule):
+    every other layer talks to CLIP through `service.clip_model`, so importing
+    the app never drags in torch and tests can stub the embedder.
+    """
+    allowed = APP_ROOT / "service" / "clip_model.py"
+    ml_roots = ("torch", "open_clip")
+    violations = []
+    for pyfile in _get_python_files(APP_ROOT):
+        if pyfile == allowed:
+            continue
+        for imp in _get_imports(pyfile):
+            root = imp.split(".")[0]
+            if root in ml_roots:
+                rel = pyfile.relative_to(APP_ROOT.parent)
+                violations.append(f"{rel}: '{imp}' imported outside service/clip_model.py")
+    assert violations == [], "CLIP/torch containment violations:\n" + "\n".join(violations)
+
+
 def test_file_size_limits():
     """Verify no Python file exceeds 300 lines."""
     violations = []

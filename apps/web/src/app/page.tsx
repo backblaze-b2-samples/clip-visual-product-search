@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { Upload } from "lucide-react";
+import { Search, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { StatsCards } from "@/components/dashboard/stats-cards";
-import { RecentUploadsTable } from "@/components/dashboard/recent-uploads-table";
-import { UploadChart } from "@/components/dashboard/upload-chart";
+import { CatalogStatsCards } from "@/components/dashboard/catalog-stats-cards";
+import { RecentProductsTable } from "@/components/dashboard/recent-products-table";
+import { CatalogGrowthChart } from "@/components/dashboard/catalog-growth-chart";
 
 export default function DashboardPage() {
   return (
@@ -13,23 +13,31 @@ export default function DashboardPage() {
         <div>
           <h1 className="page-title">Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1.5">
-            Overview of your Backblaze B2 storage activity.
+            Your catalog, its CLIP embeddings, and the FAISS index — all stored in Backblaze B2.
           </p>
         </div>
-        <Button asChild size="sm" className="h-8">
-          <Link href="/upload">
-            <Upload className="h-3.5 w-3.5" />
-            Upload files
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild size="sm" variant="outline" className="h-8">
+            <Link href="/catalog/new">
+              <Plus className="h-3.5 w-3.5" />
+              Add product
+            </Link>
+          </Button>
+          <Button asChild size="sm" className="h-8">
+            <Link href="/search">
+              <Search className="h-3.5 w-3.5" />
+              Search catalog
+            </Link>
+          </Button>
+        </div>
       </div>
-      <StatsCards />
+      <CatalogStatsCards />
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="animate-fade-in-up stagger-3">
-          <UploadChart />
+          <CatalogGrowthChart />
         </div>
         <div className="animate-fade-in-up stagger-4">
-          <RecentUploadsTable />
+          <RecentProductsTable />
         </div>
       </div>
     </div>

@@ -1,53 +1,51 @@
-<!-- last_verified: 2026-06-25 -->
+<!-- last_verified: 2026-07-21 -->
 # Feature: Dashboard
 
 ## Purpose
-Provide an at-a-glance overview of file storage usage and recent upload activity.
+Give an at-a-glance overview of the catalog and its CLIP/FAISS artifacts stored in B2.
 
 ## Used By
 - UI: `/` page (dashboard home)
-- API: `GET /files/stats`, `GET /files`, `GET /files/stats/activity`
+- API: `GET /catalog/stats`, `GET /catalog/stats/growth`, `GET /products`
 
 ## Core Functions
-- `apps/web/src/components/dashboard/stats-cards.tsx` — 4 stat cards
-- `apps/web/src/components/dashboard/recent-uploads-table.tsx` — last 10 uploads
-- `apps/web/src/components/dashboard/upload-chart.tsx` — bar chart of uploads per day
-- `apps/web/src/lib/api-client.ts` — `getFileStats()`, `getFiles()`, `getUploadActivity()`
-- `services/api/app/runtime/files.py` — `GET /files/stats` handler
-- `services/api/app/service/files.py` — `get_stats()` business logic
-- `services/api/app/repo/b2_client.py` — `get_upload_stats()` data access
+- `apps/web/src/components/dashboard/catalog-stats-cards.tsx` — 4 stat cards
+- `apps/web/src/components/dashboard/catalog-growth-chart.tsx` — products-added-per-day bar chart
+- `apps/web/src/components/dashboard/recent-products-table.tsx` — newest products
+- `apps/web/src/lib/api-client.ts` — `getCatalogStats()`, `getCatalogGrowth()`, `getProducts()`
+- `services/api/app/runtime/index.py` — `GET /catalog/stats` + `/growth` handlers
+- `services/api/app/service/catalog.py` — `get_stats()`, `get_growth()` business logic
 
 ## Canonical Files
-- Dashboard page layout: `apps/web/src/components/dashboard/stats-cards.tsx`
-- Stats service logic: `services/api/app/service/files.py`
+- Stat cards: `apps/web/src/components/dashboard/catalog-stats-cards.tsx`
+- Stats service logic: `services/api/app/service/catalog.py`
 
 ## Inputs
 - None (dashboard loads data automatically)
 
 ## Outputs
-- `GET /files/stats` → `UploadStats` (total_files, total_size_bytes, total_size_human, uploads_today, total_downloads)
-- `GET /files` (limit 10) → `FileMetadata[]` for recent uploads table (sorted newest-first)
-- `GET /files/stats/activity?days=7` → `DailyUploadCount[]` for chart (server-side aggregation)
+- `GET /catalog/stats` → `CatalogStats` (product_count, embedding_count, index_vector_count, catalog_bytes, catalog_bytes_human)
+- `GET /catalog/stats/growth?days=14` → `CatalogGrowthPoint[]` (server-side aggregation from metadata `created_at`)
+- `GET /products` → `Product[]` for the recent-products table (sorted newest-first)
 
 ## Flow
-- Page loads → three parallel API calls (stats, recent files, upload activity)
-- Stats cards display total files, storage used, uploads today, total downloads
-- Upload chart displays server-aggregated daily counts for last 7 days as bar chart after activity data is known
-- Recent uploads table shows last 10 files with filename, size, type, date, status badge
+- Page loads → parallel API calls (catalog stats, growth, products)
+- Stat cards display products, embeddings, index vectors, and catalog size
+- Growth chart displays daily product-add counts for the last 14 days
+- Recent products table lists the newest items with category, price, and date
 
 ## Edge Cases
-- API unavailable → error states with retry where supported; activity chart does not show a false zero state while loading
-- No files uploaded → empty chart message, empty table message
-- Large file count → stats endpoint paginates through all objects using `ContinuationToken`
+- API unavailable → inline error states with retry
+- Empty catalog → empty chart + table messages guiding the user to add a product / run the seed
+- Large catalog → stats/list paginate through all objects using `ContinuationToken`
 
 ## UX States
-- Loading: skeleton placeholders for cards, table, and upload activity chart
-- Empty: "No files uploaded yet" / "No upload data available yet"
+- Loading: skeletons for cards, chart, table
+- Empty: "No products yet"
 - Loaded: populated cards, chart, table
 
 ## Verification
-- Test files: `services/api/tests/test_upload_activity.py`, `services/api/tests/test_recent_files.py`
-- Required cases: stats with files, stats with empty bucket, API error fallback
+- Test files: `services/api/tests/test_catalog.py` (`test_stats_reflect_catalog`), `services/api/tests/test_search.py` (`test_http_catalog_stats`)
 - Quick verify command: `pnpm test:api`
 - Full verify command: `pnpm lint && pnpm lint:api && pnpm test:api && pnpm check:structure`
 - Pass criteria: all pytest tests green, no ruff violations

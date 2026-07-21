@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { FileMetadata } from "@vibe-coding-starter-kit/shared";
+import type { FileMetadata } from "@clip-visual-product-search/shared";
 
 import { buildFileTree, type TreeFile, type TreeFolder } from "./file-tree";
 

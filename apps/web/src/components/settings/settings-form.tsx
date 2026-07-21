@@ -29,7 +29,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { DangerZone } from "./danger-zone";
+import { IndexMaintenance } from "./index-maintenance";
 
 const settingsSchema = z.object({
   displayName: z
@@ -253,7 +253,7 @@ export function SettingsForm() {
           </CardContent>
         </Card>
 
-        <DangerZone />
+        <IndexMaintenance />
 
         {/* Action bar */}
         <div className="flex items-center justify-end gap-2">

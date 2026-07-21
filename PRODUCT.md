@@ -6,20 +6,22 @@ product
 
 ## Users
 
-AI coding agents and "vibe coders" (developers who lean on AI to move fast) who clone
-this kit as the foundation for a new full-stack app. Their context: they want to skip
-the boilerplate loop (dashboard, upload, file browser, cloud storage wiring) and go
-straight to building their app's unique features. They read the repo, keep the shared
-scaffolding, and rebrand + rewrite the dashboard for their own use case.
+Retail and marketplace engineers who want an open-source blueprint for **catalog-scale
+visual search** where Backblaze B2 is the storage layer and the model runs on their own
+hardware. Their context: they have (or will have) a large, continuously refreshed product
+catalog and want text→image and image→image search without standing up a managed vector
+service or paying per-query for a hosted embedding API. They read the repo, point the seed
+script at their real catalog, and deploy.
 
 ## Product Purpose
 
-A production-ready full-stack starter kit (Next.js 16 + React 19 + Tailwind v4 +
-shadcn/ui frontend, FastAPI backend) with Backblaze B2 cloud storage integrated out of
-the box. It ships a dashboard, drag-and-drop upload, and a file browser so builders
-start from a working app, not a blank page. Success = a builder can clone it, run it,
-rebrand it via one config file, and trust every screen enough to build on top without
-first fixing it.
+A self-hosted visual + cross-modal product search app (Next.js 16 + React 19 + Tailwind v4
++ shadcn/ui frontend, FastAPI backend) that embeds a product catalog locally with CLIP,
+searches it with a local FAISS index, and stores every artifact — images, per-SKU
+embeddings, and the index itself — in Backblaze B2 over the S3-compatible API. Success = an
+engineer can clone it, seed a catalog, and get relevant results from both a typed
+description and an uploaded photo, with B2 as the single durable store and no second API
+key.
 
 ## Brand Personality
 

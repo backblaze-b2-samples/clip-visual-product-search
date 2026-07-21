@@ -94,13 +94,11 @@ def test_traversal_keys_are_rejected():
 
 
 @pytest.mark.asyncio
-async def test_upload_empty_file_returns_400(client):
-    """Uploading an empty file returns 400 with explanation."""
-    from io import BytesIO
-
+async def test_search_empty_text_query_returns_400(client):
+    """A text search with a blank query returns 400 with explanation."""
     response = await client.post(
-        "/upload",
-        files={"file": ("empty.txt", BytesIO(b""), "text/plain")},
+        "/search",
+        data={"mode": "text", "query": "   ", "k": "8"},
     )
     assert response.status_code == 400
-    assert "empty" in response.json()["detail"].lower()
+    assert "query" in response.json()["detail"].lower()
