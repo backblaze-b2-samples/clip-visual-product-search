@@ -16,6 +16,17 @@ Usage (from the repo root, with your B2 credentials in .env):
     python scripts/seed-catalog.py
 """
 
+# --- OpenMP single-runtime guard: MUST run before torch/faiss load ---
+# See services/api/main.py for the full rationale. This script reaches the CLIP
+# (torch) and FAISS (faiss) runtimes through the service layer, and both bundle
+# their own libomp.dylib; without this guard the first FAISS op aborts with
+# "OMP: Error #15 ... already initialized" (SIGABRT / segfault). `setdefault` so
+# an explicit operator override still wins. Import-free (os only).
+import os
+
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+
 import colorsys
 import io
 import sys

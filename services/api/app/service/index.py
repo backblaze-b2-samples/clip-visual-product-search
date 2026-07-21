@@ -26,6 +26,11 @@ from app.repo import get_bytes, list_prefix, put_bytes
 
 logger = logging.getLogger(__name__)
 
+# faiss-cpu bundles its own libomp.dylib; pin its OpenMP pool to one thread so it
+# doesn't contend with torch's OpenMP runtime in the same process (see main.py's
+# OMP guard). Belt-and-suspenders alongside the OMP_NUM_THREADS env cap.
+faiss.omp_set_num_threads(1)
+
 EMBED_DIM = 512
 
 _lock = threading.RLock()

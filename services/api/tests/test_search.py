@@ -52,6 +52,42 @@ def test_search_category_filter(fake_b2, stub_embedder):
     assert all(r.product.category == Category.apparel for r in resp.results)
 
 
+def test_category_filter_does_not_shrink_top_n(fake_b2, stub_embedder):
+    """A category filter must not silently return fewer than the requested `k`.
+
+    Regression for the post-filter shrink bug: with a fixed top-K retrieval
+    budget, out-of-category nearest neighbours could consume the budget and
+    leave < k in-category hits (e.g. "Top 4" + Footwear returned 2 of 4).
+    Retrieval now widens to the whole index when a category is set, so a
+    "Top N" + category returns exactly min(N, in-category count).
+    """
+    # 6 categories x 4 = 24 products, mirroring the seeded demo catalog.
+    for cat in Category:
+        for i in range(4):
+            _seed(f"{cat.value.lower()}-{i}", category=cat)
+    in_category = 4  # Footwear products present
+
+    # k below the in-category count → exactly k, all in-category.
+    resp = search.search_text("shoe", k=2, category=Category.footwear)
+    assert resp.count == 2
+    assert all(r.product.category == Category.footwear for r in resp.results)
+
+    # k equal to the in-category count → all in-category items (not fewer).
+    resp = search.search_text("shoe", k=in_category, category=Category.footwear)
+    assert resp.count == in_category
+    assert {r.product.sku for r in resp.results} == {f"footwear-{i}" for i in range(4)}
+    assert all(r.product.category == Category.footwear for r in resp.results)
+
+    # k above the in-category count → capped at the in-category count.
+    resp = search.search_text("shoe", k=8, category=Category.footwear)
+    assert resp.count == in_category
+    assert all(r.product.category == Category.footwear for r in resp.results)
+
+    # No category → a normal top-N over the whole index, unchanged.
+    resp = search.search_text("shoe", k=4)
+    assert resp.count == 4
+
+
 def test_search_similar_excludes_self(fake_b2, stub_embedder):
     _seed("a", image=_img("a"))
     _seed("b", image=_img("b"))

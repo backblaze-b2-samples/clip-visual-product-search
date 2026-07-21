@@ -54,6 +54,11 @@ def _ensure_loaded() -> None:
         import open_clip
         import torch
 
+        # Cap torch's intra-op OpenMP pool to one thread — belt-and-suspenders
+        # alongside the OMP_NUM_THREADS env guard set in main.py / seed-catalog.py.
+        # Keeps torch's bundled libomp from contending with faiss-cpu's in-process.
+        torch.set_num_threads(1)
+
         device = _select_device()
         logger.info("Loading CLIP %s/%s on device=%s", MODEL_NAME, PRETRAINED, device)
         model, _, preprocess = open_clip.create_model_and_transforms(

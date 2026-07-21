@@ -1,3 +1,17 @@
+# --- OpenMP single-runtime guard: MUST run before any torch/faiss import ---
+# torch and faiss-cpu each bundle their own libomp.dylib. Loading both into one
+# process aborts on the first FAISS op after torch initializes its OpenMP
+# runtime: "OMP: Error #15: Initializing libomp.dylib, but found libomp.dylib
+# already initialized" -> SIGABRT, or a raw segfault (exit 139). Pin OpenMP to a
+# single thread and permit the duplicate runtime *before* libomp loads.
+# `setdefault` so an explicit operator override (shell env) still wins. This
+# block is import-free (os only) and never imports torch/faiss, so it stays
+# within the torch/faiss containment enforced by tests/test_structure.py.
+import os
+
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+
 import json
 import logging
 import sys

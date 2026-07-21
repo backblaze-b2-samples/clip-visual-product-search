@@ -36,7 +36,12 @@ Find catalog products by a **typed description** (text→image) or an **uploaded
 - Client submits mode + query/image (+ k, category) as multipart to `POST /search`
 - Backend embeds the query into CLIP's shared 512-d space (`embed_text` or `embed_image`)
 - FAISS returns the nearest vectors; ids are mapped to SKUs and hydrated with metadata + image URL
-- Optional category filter is applied **after** ranking (over-fetch so ~k remain)
+- Optional category filter is applied **after** ranking. When a category is set the
+  retrieval budget widens to the whole (exact, tiny) index, so the post-filter can't
+  shrink the count: **"Top N" + a category returns `min(N, in-category count)`** — never
+  fewer just because out-of-category neighbours ranked higher. With no category it is a
+  normal top-N over the whole index. (At catalog scale, use a pre-filtered / per-category
+  index instead of a full scan — see [FAISS Index](faiss-index.md).)
 - Results render as a product grid with a `% match` badge per hit
 
 ## Edge Cases

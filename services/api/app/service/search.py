@@ -2,8 +2,13 @@
 
 Embed the query into CLIP's shared 512-d space (text or image, same space),
 run an exact cosine-similarity search on the FAISS index, then hydrate each hit
-into a `SearchResult` (product metadata + a presigned image URL + score). The
-optional category filter is applied after ranking so it never distorts scores.
+into a `SearchResult` (product metadata + a presigned image URL + score).
+
+The optional category filter is applied after ranking so it never distorts
+scores. So that a category can't silently shrink the requested count, the
+retrieval budget widens to the whole (exact, tiny) index when a category is set
+— see `_fetch_k` — guaranteeing "Top N" + a category returns
+min(N, in-category count) rather than fewer.
 """
 
 import logging
@@ -15,9 +20,6 @@ from app.service.catalog import CatalogError
 from app.types import Category, Product, SearchMode, SearchResponse, SearchResult
 
 logger = logging.getLogger(__name__)
-
-# Over-fetch when a category filter is active so post-filtering still returns ~k.
-_FILTER_OVERFETCH = 4
 
 
 def _hydrate(hits: list[tuple[str, float]], category: Category | None, k: int) -> list[SearchResult]:
@@ -38,7 +40,26 @@ def _hydrate(hits: list[tuple[str, float]], category: Category | None, k: int) -
 
 
 def _fetch_k(k: int, category: Category | None) -> int:
-    return k * _FILTER_OVERFETCH if category is not None else k
+    """Retrieval budget for the FAISS search.
+
+    No category → retrieve exactly `k` (a normal top-N over the whole index).
+
+    With a category the filter is a POST-filter applied after ranking, so a
+    fixed top-K budget can be exhausted by out-of-category neighbours and leave
+    fewer than `k` in-category hits even when more exist in that category.
+    Retrieve the whole (exact, tiny `IndexFlatIP`) index instead so every
+    in-category vector is a candidate; `_hydrate` then filters to the category
+    and truncates to `k`, guaranteeing "Top N" + category returns
+    min(N, in-category count).
+
+    Scanning the full index is trivial at demo scale (~dozens of vectors). For a
+    millions-row catalog the scale-appropriate approach is a pre-filtered /
+    per-category index (e.g. an IDSelector on the flat index, or IVF/HNSW — see
+    index.py), not a full scan.
+    """
+    if category is None:
+        return k
+    return index.vector_count()
 
 
 def search_text(query: str, k: int = 12, category: Category | None = None) -> SearchResponse:
