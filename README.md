@@ -16,6 +16,28 @@ second API key — and searched with a local **FAISS** index. Every artifact is 
 written over B2's **S3-compatible API** with a custom user agent and the standard `B2_*`
 env vars. The model runs on your own hardware (CPU by default; CUDA / Apple MPS auto-detected).
 
+## What it looks like
+
+**Dashboard** — catalog metrics (products, CLIP embeddings, index vectors, catalog size), a 14-day growth chart, and recent products, all backed by Backblaze B2.
+
+![Dashboard with catalog metrics and a growth chart](docs/images/dashboard.png)
+
+**Search (text → image)** — describe a product in plain words and rank the whole catalog by CLIP cosine similarity over the FAISS index.
+
+![Text-to-image search results ranked by CLIP similarity](docs/images/search-text.png)
+
+**Search (image → image)** — upload a reference photo and find the most visually similar items in the catalog.
+
+![Image-to-image search results from an uploaded reference photo](docs/images/search-image.png)
+
+**Catalog** — the sample-scoped product gallery with category filtering; every product and its embedding live under the `catalog/images/` prefix in B2.
+
+![Product catalog gallery with category filtering](docs/images/catalog.png)
+
+**Product detail** — a single product's B2 embedding and image locations plus a one-click **Find similar** image-to-image lookup over the rest of the catalog.
+
+![Product detail showing CLIP embedding info and similar products](docs/images/product-detail.png)
+
 ## Why this shape matters
 
 As a catalog grows toward millions of images, B2 holds a **1:1 image↔embedding artifact
